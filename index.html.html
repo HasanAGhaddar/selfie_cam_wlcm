@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1016">
+<title>Selfie Wall</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0e1016; --card:#171a23; --line:#262a36;
+    --text:#f2f4f8; --muted:#8b93a7;
+    --accent:#6c5ce7; --accent2:#00d2a8; --danger:#ff5c7a;
+  }
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text); min-height:100dvh;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding-bottom:calc(32px + env(safe-area-inset-bottom));
+  }
+  header{
+    position:sticky; top:0; z-index:30;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    background:rgba(14,16,22,.85); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand .dot{
+    width:11px;height:11px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 0 14px rgba(108,92,231,.8);
+  }
+  h1{font-size:17px;margin:0;letter-spacing:.3px;font-weight:650}
+  .header-actions{display:flex;gap:8px}
+
+  button{font-family:inherit;font-size:14px;cursor:pointer;border:none;border-radius:12px;transition:transform .12s,opacity .2s,background .2s}
+  button:active{transform:scale(.96)}
+  .ghost{background:#1e2230;color:var(--muted);padding:8px 13px;border:1px solid var(--line)}
+  .ghost:hover{color:var(--text)}
+  .primary{background:linear-gradient(135deg,var(--accent),#8f7bff);color:#fff;padding:12px 20px;font-weight:600}
+  .danger{background:rgba(255,92,122,.14);color:var(--danger);padding:12px 20px;font-weight:600;border:1px solid rgba(255,92,122,.3)}
+  .big{flex:1;min-width:110px}
+
+  main{max-width:1100px;margin:0 auto;padding:18px 16px;display:grid;gap:34px}
+
+  /* ---------- camera ---------- */
+  .camera-card{
+    max-width:460px;margin:0 auto;width:100%;
+    background:var(--card);border:1px solid var(--line);
+    border-radius:24px;padding:14px;
+  }
+  .stage{
+    position:relative;width:100%;aspect-ratio:3/4;max-height:56vh;
+    background:#000;border-radius:18px;overflow:hidden;
+  }
+  #video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+  .gate{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;padding:24px;
+    text-align:center;background:#10131b;z-index:5;
+  }
+  .gate p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}
+  .gate.hidden{display:none}
+
+  .countdown{
+    position:absolute;inset:0;display:grid;place-items:center;z-index:6;
+    font-size:clamp(90px,26vw,150px);font-weight:800;color:#fff;
+    text-shadow:0 6px 40px rgba(0,0,0,.8);pointer-events:none;opacity:0;
+    transition:opacity .15s;
+  }
+  .countdown.show{opacity:1}
+  .countdown.pop{animation:pop .45s ease-out}
+  @keyframes pop{from{transform:scale(1.5);opacity:.2}to{transform:scale(1);opacity:1}}
+
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:7}
+  .flash.fire{animation:flash .42s ease-out}
+  @keyframes flash{0%{opacity:.92}100%{opacity:0}}
+
+  .controls{display:flex;justify-content:center;padding:18px 0 6px}
+  .shutter{
+    width:78px;height:78px;border-radius:50%;background:transparent;
+    border:4px solid #fff;display:grid;place-items:center;padding:0;
+  }
+  .shutter span{width:58px;height:58px;border-radius:50%;background:#fff;display:block;transition:transform .12s}
+  .shutter:active span{transform:scale(.82)}
+  .shutter:disabled{opacity:.3;cursor:not-allowed}
+  .hint{text-align:center;color:var(--muted);font-size:12px;margin:0 0 6px}
+
+  /* ---------- wall ---------- */
+  .wall-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .wall-head h2{font-size:16px;margin:0;font-weight:650;letter-spacing:.3px}
+  .wall-head span{color:var(--muted);font-size:13px;font-weight:500}
+  .wall{
+    display:grid;gap:14px;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  }
+  .polaroid{
+    margin:0;background:#fdfdfd;padding:8px 8px 0;border-radius:6px;
+    box-shadow:0 8px 22px rgba(0,0,0,.45);
+    transform:rotate(var(--r,0deg));transition:transform .22s,box-shadow .22s;
+  }
+  .polaroid:hover{transform:rotate(0deg) translateY(-5px);box-shadow:0 16px 32px rgba(0,0,0,.6)}
+  .polaroid img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;border-radius:2px;background:#ddd;cursor:zoom-in}
+  .polaroid figcaption{
+    color:#8a8a8a;font-size:11px;text-align:center;padding:7px 2px 8px;
+    font-variant-numeric:tabular-nums;
+  }
+  .empty{color:var(--muted);text-align:center;font-size:14px;padding:30px 0;margin:0}
+
+  /* ---------- sheets / modals ---------- */
+  .sheet{
+    position:fixed;inset:0;z-index:60;display:none;
+    align-items:center;justify-content:center;padding:20px;
+    background:rgba(6,7,11,.88);backdrop-filter:blur(10px);
+  }
+  .sheet.open{display:flex}
+  .sheet-inner{width:100%;max-width:440px;display:flex;flex-direction:column;gap:16px}
+  .sheet-inner img{
+    width:100%;max-height:62vh;object-fit:contain;border-radius:16px;
+    background:#000;box-shadow:0 20px 50px rgba(0,0,0,.6);
+  }
+  .sheet-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .qr-box{
+    background:#fff;padding:16px;border-radius:18px;display:grid;place-items:center;min-height:220px;
+  }
+  .qr-box img{width:220px;height:220px;display:block;border-radius:0}
+  .url{
+    background:#1e2230;border:1px solid var(--line);border-radius:12px;
+    padding:12px;font-size:12px;color:var(--muted);word-break:break-all;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;user-select:all;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="dot"></span><h1>Selfie Wall</h1></div>
+  <div class="header-actions">
+    <button id="qrBtn" class="ghost">QR</button>
+    <button id="clearBtn" class="ghost">Clear</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ CAMERA ============ -->
+  <section class="camera-card">
+    <div class="stage">
+      <video id="video" playsinline autoplay muted></video>
+
+      <div class="gate" id="gate">
+        <p id="gateMsg">Tap below and allow camera access<br>to join the wall ✨</p>
+        <button id="startBtn" class="primary">Start camera</button>
+      </div>
+
+      <div class="countdown" id="countdown"></div>
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="controls">
+      <button id="shootBtn" class="shutter" disabled aria-label="Take photo"><span></span></button>
+    </div>
+    <p class="hint" id="hint">Front camera · photos are saved on this device</p>
+  </section>
+
+  <!-- ============ WALL ============ -->
+  <section>
+    <div class="wall-head">
+      <h2>Wall</h2><span id="count">0 selfies</span>
+    </div>
+    <div class="wall" id="wall"></div>
+    <p class="empty" id="empty">No selfies yet — be the first! 📸</p>
+  </section>
+</main>
+
+<!-- ============ PREVIEW ============ -->
+<div class="sheet" id="preview">
+  <div class="sheet-inner">
+    <img id="previewImg" alt="Your selfie">
+    <div class="sheet-actions">
+      <button id="retakeBtn" class="ghost big">Retake</button>
+      <button id="keepBtn" class="primary big">Add to wall</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LIGHTBOX ============ -->
+<div class="sheet" id="lightbox">
+  <div class="sheet-inner">
+    <img id="lightboxImg" alt="">
+    <div class="sheet-actions">
+      <button id="closeLbBtn" class="ghost big">Close</button>
+      <a id="downloadLink" class="primary big" download style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">Download</a>
+      <button id="deleteBtn" class="danger big">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ QR ============ -->
+<div class="sheet" id="qrSheet">
+  <div class="sheet-inner">
+    <div class="qr-box"><img id="qrImg" alt="QR code"></div>
+    <div class="url" id="urlText"></div>
+    <button id="closeQrBtn" class="ghost big" style="padding:12px">Close</button>
+  </div>
+</div>
+
+<canvas id="canvas" hidden></canvas>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const video      = $('video');
+  const canvas     = $('canvas');
+  const gate       = $('gate');
+  const gateMsg    = $('gateMsg');
+  const startBtn   = $('startBtn');
+  const shootBtn   = $('shootBtn');
+  const countdownEl= $('countdown');
+  const flashEl    = $('flash');
+  const wallEl     = $('wall');
+  const countEl    = $('count');
+  const emptyEl    = $('empty');
+  const hintEl     = $('hint');
+
+  const MAX_SIDE   = 900;    // px, longest edge of the stored photo
+  const QUALITY    = 0.72;   // JPEG quality
+  const MAX_PHOTOS = 120;    // safety cap
+
+  let stream      = null;
+  let cameraReady = false;
+  let busy        = false;
+  let pendingPhoto= null;
+  let lightboxId  = null;
+
+  /* ================= STORAGE ================= */
+  const KEY = 'selfieWall.v1';
+
+  function loadPhotos() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  function persist(list) {
+    // Try to save; if the quota is exceeded, drop the oldest photos until it fits.
+    let copy = list.slice();
+    while (copy.length) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(copy));
+        return copy;
+      } catch (e) {
+        copy = copy.slice(Math.ceil(copy.length * 0.15) || 1); // drop oldest ~15%
+      }
+    }
+    try { localStorage.removeItem(KEY); } catch {}
+    return [];
+  }
+
+  let photos = loadPhotos();
+
+  /* ================= CAMERA ================= */
+  async function startCamera() {
+    if (cameraReady) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return showGate('Your browser does not support camera access. Try Chrome or Safari.');
+    }
+    if (!window.isSecureContext) {
+      return showGate('Camera needs a secure connection (HTTPS). Open this page via https:// or localhost.');
+    }
+    gateMsg.textContent = 'Starting camera…';
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: 'user',                 // ← the selfie camera
+          width:  { ideal: 1280 },
+          height: { ideal: 960 }
+        }
+      });
+      video.srcObject = stream;
+      await video.play();
+      cameraReady = true;
+      gate.classList.add('hidden');
+      shootBtn.disabled = false;
+      hintEl.textContent = 'Front camera · photos are saved on this device';
+    } catch (err) {
+      handleCameraError(err);
+    }
+  }
+
+  function handleCameraError(err) {
+    const name = err?.name || '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      showGate('Camera permission was blocked. Enable it in your browser settings, then reload.');
+    } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      showGate('No front camera found on this device.');
+    } else if (name === 'NotReadableError') {
+      showGate('The camera is busy in another app. Close it and try again.');
+    } else {
+      showGate('Could not start the camera. Please try again.');
+    }
+  }
+
+  function showGate(msg) {
+    gateMsg.textContent = msg;
+    gate.classList.remove('hidden');
+    startBtn.textContent = 'Try again';
+    shootBtn.disabled = true;
+    cameraReady = false;
+  }
+
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    cameraReady = false;
+    shootBtn.disabled = true;
+  }
+
+  startBtn.addEventListener('click', startCamera);
+
+  // Pause the camera when the tab/app goes to the background.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopCamera();
+    } else if (!gate.classList.contains('hidden') === false && !cameraReady) {
+      // resume only if we were already running before
+    }
+  });
+
+  /* ================= COUNTDOWN + CAPTURE ================= */
+  function runCountdown(n = 3) {
+    return new Promise(resolve => {
+      let i = n;
+      countdownEl.textContent = i;
+      countdownEl.classList.add('show');
+      const tick = () => {
+        i--;
+        if (i <= 0) {
+          countdownEl.classList.remove('show');
+          countdownEl.textContent = '';
+          resolve();
+        } else {
+          countdownEl.textContent = i;
+          countdownEl.classList.remove('pop');
+          void countdownEl.offsetWidth;   // restart animation
+          countdownEl.classList.add('pop');
+          setTimeout(tick, 750);
+        }
+      };
+      setTimeout(tick, 750);
+    });
+  }
+
+  function grabFrame() {
+    const vw = video.videoWidth  || 720;
+    const vh = video.videoHeight || 960;
+
+    const scale = Math.min(1, MAX_SIDE / Math.max(vw, vh));
+    const w = Math.round(vw * scale);
+    const h = Math.round(vh * scale);
+
+    canvas.width  = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.translate(w, 0);
+    ctx.scale(-1, 1);              // mirror, so it matches the preview
+    ctx.drawImage(video, 0, 0, w, h);
+    ctx.restore();
+
+    return canvas.toDataURL('image/jpeg', QUALITY);
+  }
+
+  shootBtn.addEventListener('click', async () => {
+    if (busy || !cameraReady) return;
+    busy = true;
+    shootBtn.disabled = true;
+
+    await runCountdown(3);
+
+    // flash
+    flashEl.classList.remove('fire');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('fire');
+
+    pendingPhoto = grabFrame();
+    $('previewImg').src = pendingPhoto;
+    $('preview').classList.add('open');
+
+    busy = false;
+  });
+
+  /* ================= PREVIEW ================= */
+  $('retakeBtn').addEventListener('click', () => {
+    pendingPhoto = null;
+    $('preview').classList.remove('open');
+    shootBtn.disabled = !cameraReady;
+  });
+
+  $('keepBtn').addEventListener('click', () => {
+    if (!pendingPhoto) return;
+    photos.push({ id: 'p' + Date.now() + Math.random().toString(36).slice(2, 7), data: pendingPhoto, ts: Date.now() });
+    if (photos.length > MAX_PHOTOS) photos = photos.slice(-MAX_PHOTOS);
+    photos = persist(photos);
+    pendingPhoto = null;
+    $('preview').classList.remove('open');
+    shootBtn.disabled = !cameraReady;
+    render();
+    wallEl.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  /* ================= WALL ================= */
+  function timeLabel(ts) {
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function render() {
+    wallEl.innerHTML = '';
+    countEl.textContent = photos.length + (photos.length === 1 ? ' selfie' : ' selfies');
+    emptyEl.style.display = photos.length ? 'none' : 'block';
+
+    [...photos].reverse().forEach(p => {          // newest first
+      const fig = document.createElement('figure');
+      fig.className = 'polaroid';
+      fig.style.setProperty('--r', (Math.random() * 4 - 2).toFixed(2) + 'deg');
+
+      const img = document.createElement('img');
+      img.src = p.data;
+      img.alt = 'Selfie';
+      img.loading = 'lazy';
+      img.addEventListener('click', () => openLightbox(p.id));
+
+      const cap = document.createElement('figcaption');
+      cap.textContent = timeLabel(p.ts);
+
+      fig.append(img, cap);
+      wallEl.appendChild(fig);
+    });
+  }
+
+  /* ================= LIGHTBOX ================= */
+  function openLightbox(id) {
+    const p = photos.find(x => x.id === id);
+    if (!p) return;
+    lightboxId = id;
+    $('lightboxImg').src = p.data;
+    const a = $('downloadLink');
+    a.href = p.data;
+    a.download = 'selfie-' + new Date(p.ts).toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.jpg';
+    $('lightbox').classList.add('open');
+  }
+
+  $('closeLbBtn').addEventListener('click', () => {
+    $('lightbox').classList.remove('open');
+    lightboxId = null;
+  });
+
+  $('deleteBtn').addEventListener('click', () => {
+    if (!lightboxId) return;
+    photos = persist(photos.filter(p => p.id !== lightboxId));
+    $('lightbox').classList.remove('open');
+    lightboxId = null;
+    render();
+  });
+
+  /* ================= CLEAR ALL ================= */
+  $('clearBtn').addEventListener('click', () => {
+    if (!photos.length) return;
+    if (confirm('Delete all ' + photos.length + ' photos from this device?')) {
+      photos = [];
+      try { localStorage.removeItem(KEY); } catch {}
+      render();
+    }
+  });
+
+  /* ================= QR PANEL ================= */
+  $('qrBtn').addEventListener('click', () => {
+    const url = location.href;
+    $('urlText').textContent = url;
+    $('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=440x440&margin=8&data=' + encodeURIComponent(url);
+    $('qrImg').onerror = () => {
+      $('qrImg').replaceWith(Object.assign(document.createElement('p'), {
+        textContent: 'QR service unavailable — copy the link below into any QR generator.',
+        style: 'color:#333;font-size:13px;text-align:center;padding:20px'
+      }));
+    };
+    $('qrSheet').classList.add('open');
+  });
+
+  $('closeQrBtn').addEventListener('click', () => $('qrSheet').classList.remove('open'));
+
+  /* ================= INIT ================= */
+  render();
+
+  // Auto-start if permission was already granted previously.
+  if (navigator.permissions?.query) {
+    navigator.permissions.query({ name: 'camera' })
+      .then(res => { if (res.state === 'granted') startCamera(); })
+      .catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
